@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Romance Scam Detector — Spotlight Demo</title>
+<style>
+  :root{
+    --bg-1:#0b1220;--bg-2:#0f172a;--glass:rgba(255,255,255,0.06);
+    --stroke:rgba(255,255,255,0.10);--text:#e5e7eb;--muted:#9aa3b2;
+    --accent:#f97316;--accent-2:#fb923c;--safe:#16a34a;--danger:#ef4444;--warn:#f59e0b;
+    --bubble-you:#1d4ed8;--bubble-them:#334155;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; color:var(--text); font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    background:
+      radial-gradient(1200px 600px at 80% -10%, #1b2440 0%, transparent 70%),
+      radial-gradient(1000px 800px at -10% 110%, #241b40 0%, transparent 70%),
+      linear-gradient(135deg,var(--bg-1),var(--bg-2));
+    overflow:hidden;
+  }
+
+  /* Decorative orbs */
+  .orb{position:fixed; width:34vmax; height:34vmax; border-radius:50%;
+       filter:blur(60px); opacity:.10; pointer-events:none; mix-blend:screen;}
+  .orb.one{background:#4f46e5; left:-10vmax; top:-8vmax; animation:float1 16s ease-in-out infinite;}
+  .orb.two{background:#f59e0b; right:-8vmax; bottom:-10vmax; animation:float2 18s ease-in-out infinite;}
+  @keyframes float1{50%{transform:translate(60px,40px) scale(1.05)}}
+  @keyframes float2{50%{transform:translate(-80px,-30px) scale(0.95)}}
+
+  /* Centered layout: phone only */
+  .wrap{
+    min-height:100vh; padding:28px;
+    display:grid; place-items:center;   /* <— center the phone */
+  }
+
+  /* CENTER: phone spotlight */
+  .center{
+    width:100%; min-height:92vh;
+    display:grid; place-items:center; position:relative;
+  }
+  .halo{
+    position:absolute; width:680px; height:680px; border-radius:50%;
+    background: radial-gradient(circle at 50% 48%, rgba(249,115,22,.22), transparent 60%),
+                radial-gradient(circle at 50% 52%, rgba(37,99,235,.22), transparent 70%);
+    filter: blur(40px); z-index:0; animation:halo 7s ease-in-out infinite alternate;
+  }
+  @keyframes halo{to{transform:scale(1.04)}}
+
+  .ring{
+    position:absolute; width:520px; height:520px; border-radius:50%;
+    border:2px dashed rgba(255,255,255,.18); z-index:0; animation:spin 18s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .phone{
+    position:relative; z-index:1;
+    width:420px; height:820px; border-radius:34px; padding:14px;
+    display:grid; grid-template-rows:68px 1fr 88px;
+    background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));
+    border:1px solid var(--stroke);
+    box-shadow:
+      0 22px 65px rgba(0,0,0,.55),
+      0 0 0 10px rgba(249,115,22,.10),
+      0 0 0 25px rgba(37,99,235,.06);
+    backdrop-filter: blur(10px);
+  }
+  .live{
+    position:absolute; top:-12px; left:14px; background:linear-gradient(90deg,var(--accent),var(--accent-2));
+    color:#111827; font-weight:900; font-size:11px; letter-spacing:.5px; padding:6px 10px; border-radius:999px;
+    box-shadow:0 10px 25px rgba(0,0,0,.35);
+  }
+  .notch{position:absolute; top:12px; left:50%; transform:translateX(-50%);
+         width:150px; height:28px; border-radius:14px; background:rgba(0,0,0,.45);}
+  .topbar{display:flex; align-items:center; justify-content:space-between; padding:0 6px;}
+  .title{font-weight:800; letter-spacing:.3px}
+  .status{display:inline-flex; align-items:center; gap:8px; font-size:12px; color:var(--muted)}
+  .dot{width:10px; height:10px; border-radius:50%; background:var(--safe);}
+
+  .log{
+    overflow:auto; padding:10px; display:flex; flex-direction:column; gap:12px; scroll-behavior:smooth;
+    mask-image: linear-gradient(180deg, rgba(0,0,0,.2), black 18px, black calc(100% - 18px), rgba(0,0,0,.2));
+  }
+  .bubble{
+    max-width:78%; padding:11px 14px; border-radius:18px; line-height:1.25; font-size:14.4px;
+    position:relative; transform: translateY(8px); opacity:0; animation:pop .16s ease-out forwards;
+    box-shadow:0 8px 24px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  .bubble.you{align-self:flex-end; background:linear-gradient(180deg,var(--bubble-you),#173eab); color:#fff;}
+  .bubble.them{align-self:flex-start; background:linear-gradient(180deg,var(--bubble-them),#2a3446); color:#f3f4f6;}
+  .bubble .tail{content:""; position:absolute; bottom:-2px; width:14px; height:14px; transform:rotate(45deg); filter:blur(.2px);}
+  .bubble.you .tail{ right:8px; background:#173eab;}
+  .bubble.them .tail{ left:8px; background:#2a3446;}
+  .meta{font-size:11px; color:var(--muted); margin-top:2px}
+  @keyframes pop{to{transform:translateY(0); opacity:1}}
+
+  /* avatar next to the title */
+.contact{display:flex; align-items:center; gap:8px;}
+.avatar-wrap{
+  width:30px; height:30px; border-radius:50%;
+  padding:2px;
+  background:conic-gradient(#f97316,#fb923c,#2563eb,#f97316); /* subtle ring */
+}
+.avatar{
+  width:100%; height:100%; border-radius:50%; object-fit:cover; display:block;
+  border:1px solid rgba(255,255,255,.6);
+}
+
+  .bubble.flagged{
+    outline:1px solid rgba(239,68,68,.65);
+    box-shadow:0 0 0 4px rgba(239,68,68,.12), 0 10px 28px rgba(239,68,68,.38), inset 0 1px 0 rgba(255,255,255,.05);
+  }
+  .ribbon{
+    position:absolute; top:-8px; right:-8px; background:var(--danger); color:white; font-size:10px;
+    padding:4px 6px; border-radius:10px; font-weight:800; letter-spacing:.4px; box-shadow:0 6px 16px rgba(0,0,0,.35);
+  }
+
+  .composer{
+    display:grid; grid-template-columns:1fr auto auto; gap:8px; padding:10px; border-radius:16px;
+    border:1px solid var(--stroke); background:var(--glass); backdrop-filter: blur(8px);
+  }
+  .composer input{background:transparent; border:none; outline:none; color:var(--text); font-size:14px; padding:10px 8px;}
+  .btn{border:none; border-radius:12px; padding:10px 14px; font-weight:800; cursor:pointer; transition:transform .06s ease, filter .2s ease;}
+  .btn.them{background:#3a465c; color:#e5e7eb} .btn.you{background:linear-gradient(90deg,var(--accent),var(--accent-2)); color:#111827}
+  .btn:hover{filter:brightness(1.05)} .btn:active{transform:translateY(1px)}
+
+  /* Modal + Toast */
+  .modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.55); z-index:10;}
+  .modal.show{display:flex}
+  .card{width:min(560px,92vw); border-radius:16px; border:1px solid var(--stroke);
+        background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.04)); padding:22px; backdrop-filter: blur(10px);}
+  .rowc{display:flex; align-items:center; gap:10px}
+  .dot-danger{width:12px; height:12px; border-radius:50%; background:var(--danger)}
+  .footer{display:flex; justify-content:flex-end; gap:10px; margin-top:16px}
+  .link{color:#93c5fd; text-decoration:none; font-weight:700}
+  .toast{position:fixed; right:18px; bottom:18px; background:#0d1424; border:1px solid var(--stroke);
+         padding:12px 14px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.35); display:none;}
+  .toast.show{display:block; animation:slidein .25s ease-out}
+  @keyframes slidein{from{transform:translateY(8px); opacity:.2} to{transform:none; opacity:1}}
+</style>
+</head>
+<body>
+  <div class="orb one"></div><div class="orb two"></div>
+
+  <div class="wrap">
+    <!-- CENTER: spotlight phone -->
+    <main class="center">
+      <div class="halo"></div>
+      <div class="ring"></div>
+
+      <div class="phone" id="phone">
+        <div class="live">LIVE SCAN</div>
+        <div class="notch"></div>
+        <div class="topbar">
+          <div class="title contact">
+            <span class="avatar-wrap">
+              <img class="avatar" src="sab.jpg" alt="Sabrina"
+                   onerror="this.src='https://i.pravatar.cc/60?img=47'">
+            </span>
+            Sabrina
+          </div>
+          
+          <div class="status"><span id="statusText">Detector</span><span class="dot" id="statusDot"></span></div>
+        </div>
+
+        <div id="log" class="log">
+          <div class="bubble them"><span>Hello</span><div class="tail"></div><div class="meta">03:45</div></div>
+        </div>
+
+        <div class="composer">
+          <input id="msg" placeholder="Type a message…" />
+          <button id="btnThem" class="btn them" title="Send as Them">Them</button>
+          <button id="btnYou" class="btn you"  title="Send as You">You</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal" id="modal" role="dialog" aria-modal="true">
+    <div class="card">
+      <div class="rowc">
+        <div class="dot-danger"></div>
+        <h2 style="margin:0">Oops — this looks fishy</h2>
+      </div>
+      <p class="muted" id="modalDetail">This message matches patterns commonly found in romance scams.</p>
+      <div class="footer">
+        <a class="link" href="https://www.cyber.gov.au/report" target="_blank" rel="noreferrer">Report to ACSC</a>
+        <button id="closeModal" class="btn them">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast">Flagged: possible romance scam.</div>
+
+<script>
+  // ======== SET YOUR BACKEND URL HERE =========
+  const BACKEND_URL = "http://127.0.0.1:8000";
+  // ============================================
+
+  const log = document.getElementById("log");
+  const msg = document.getElementById("msg");
+  const btnThem = document.getElementById("btnThem");
+  const btnYou  = document.getElementById("btnYou");
+  const th = document.getElementById("th");               // (no right panel — may be null)
+  const statusDot = document.getElementById("statusDot");
+  const backendLabel = document.getElementById("backendLabel"); // (may be null)
+  const health = document.getElementById("health");       // (may be null)
+  const modal = document.getElementById("modal");
+  const modalDetail = document.getElementById("modalDetail");
+  const closeModal = document.getElementById("closeModal");
+  const toast = document.getElementById("toast");
+  const cTotal = document.getElementById("cTotal");       // (may be null)
+  const cFlags = document.getElementById("cFlags");       // (may be null)
+  const cLast  = document.getElementById("cLast");        // (may be null)
+
+  if (backendLabel) backendLabel.textContent = BACKEND_URL;
+  let total=0, flags=0;
+
+  function timeNow(){ const d=new Date(); return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
+  function escapeHtml(s){ return s.replace(/[&<>"']/g, m => ({'&':'&','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+  function addBubble(text, who){
+    const b = document.createElement("div");
+    b.className = "bubble " + who;
+    b.innerHTML = `<span>${escapeHtml(text)}</span><div class="tail"></div><div class="meta">${timeNow()}</div>`;
+    log.appendChild(b); log.scrollTop = log.scrollHeight; return b;
+  }
+
+  function showToast(msg){
+    toast.textContent = msg; toast.classList.add("show");
+    setTimeout(()=> toast.classList.remove("show"), 2200);
+  }
+
+  function ping(color){
+    if (statusDot){ statusDot.style.background = color; statusDot.animate([{transform:'scale(1)'},{transform:'scale(1.35)'},{transform:'scale(1)'}], {duration:380}); }
+  }
+
+  async function checkBackend(){
+    try{
+      const r = await fetch(BACKEND_URL + "/health");
+      const j = await r.json();
+      if (health) health.textContent = `Backend OK • Hash bank size: ${j.bank_size}`;
+      ping("#16a34a");
+    }catch{
+      if (health) health.textContent = "Backend not reachable.";
+      ping("#f59e0b");
+    }
+  }
+  checkBackend();
+
+  async function scoreMessage(text){
+    const threshold = Number(th?.value || 20);
+    const body = JSON.stringify({ text, threshold_percent: threshold });
+    const res = await fetch(BACKEND_URL + "/score", { method:"POST", headers:{ "Content-Type":"application/json" }, body });
+    return res.json();
+  }
+
+  function flagBubble(bubble, detail){
+    bubble.classList.add("flagged");
+    const tag = document.createElement("div");
+    tag.className = "ribbon"; tag.textContent = "FLAG"; bubble.appendChild(tag);
+    modalDetail.textContent = detail; modal.classList.add("show");
+    showToast("Flagged: possible romance scam"); ping("#ef4444");
+    document.getElementById("phone").animate([{transform:'translateX(0)'},{transform:'translateX(-2px)'},{transform:'translateX(2px)'},{transform:'translateX(0)'}], {duration:160});
+  }
+
+  async function handleSend(who){
+    const text = (msg.value || "").trim(); if(!text) return;
+    msg.value = ""; const bubble = addBubble(text, who);
+    try{
+      const j = await scoreMessage(text);
+      total++; if (cTotal) cTotal.textContent = total; if (cLast) cLast.textContent = j.overlap_percent ?? '–';
+      if(j.alert){
+        flags++; if (cFlags) cFlags.textContent = flags;
+        flagBubble(bubble, `Overlap with known scam patterns: ${j.overlap_percent}% (threshold ${j.threshold_percent}%).`);
+      } else {
+        ping("#16a34a");
+      }
+    }catch{ ping("#f59e0b"); }
+  }
+
+  btnThem.addEventListener("click", ()=> handleSend("them"));
+  btnYou .addEventListener("click", ()=> handleSend("you"));
+  msg.addEventListener("keydown", (e)=>{ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); handleSend("you"); }});
+
+  closeModal.addEventListener("click", ()=> modal.classList.remove("show"));
+  modal.addEventListener("click", (e)=>{ if(e.target===modal) modal.classList.remove("show"); });
+
+  // right-panel chips were removed; this stays harmless if none exist
+  document.querySelectorAll(".chip").forEach(c=> c.addEventListener("click", ()=>{ msg.value = c.getAttribute("data-template"); msg.focus(); }));
+</script>
+</body>
+</html>
